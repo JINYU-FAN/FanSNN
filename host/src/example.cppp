@@ -14,15 +14,23 @@ scoped_array<cl_command_queue> queue; // num_devices elements
 cl_program program = NULL;
 scoped_array<cl_kernel> kernel; // num_devices elements
 
-scoped_array<cl_mem> input_u_buf; // num_devices elements
-
+scoped_array<unsigned> n_per_device; // num_devices elements
 
 // Problem data.
-unsigned N = 1e0; // problem size
+unsigned N = 1e2; // problem size
 
-scoped_array<scoped_aligned_ptr<float> > input_u; // num_devices elements
+// num_devices elements
 
-scoped_array<unsigned> n_per_device; // num_devices elements
+
+
+scoped_array<cl_mem> u_buf; // num_devices elements
+scoped_array<cl_mem> I_buf;
+scoped_array<cl_mem> Iinject_buf;
+scoped_array<cl_mem> spike_buf;
+scoped_array<scoped_aligned_ptr<float> > u; 
+scoped_array<scoped_aligned_ptr<float> > I; 
+scoped_array<scoped_aligned_ptr<float> > Iinject; 
+scoped_array<scoped_aligned_ptr<bool> > spike; 
 
 // Function prototypes
 float rand_float();
@@ -95,25 +103,30 @@ bool init_opencl() {
     printf("  %s\n", getDeviceName(device[i]).c_str());
   }
 
+  // Create per-device objects. 
+  queue.reset(num_devices);
+  kernel.reset(num_devices);
+  n_per_device.reset(num_devices);
+  u_buf.reset(num_devices);
+  I_buf.reset(num_devices);
+  Iinject_buf.reset(num_devices);
+  spike_buf.reset(num_devices);
+
+
+
   // Create the context.
   context = clCreateContext(NULL, num_devices, device, &oclContextCallback, NULL, &status);
   checkError(status, "Failed to create context");
 
   // Create the program for all device. Use the first device as the
   // representative device (assuming all device are of the same type).
-  std::string binary_file = getBoardBinaryFile("LIF_update", device[0]);
+  std::string binary_file = getBoardBinaryFile("easy_neuron_update", device[0]);
   printf("Using AOCX: %s\n", binary_file.c_str());
   program = createProgramFromBinary(context, binary_file.c_str(), device, num_devices);
 
   // Build the program that was just created.
   status = clBuildProgram(program, 0, NULL, "", NULL, NULL);
   checkError(status, "Failed to build program");
-
-  // Create per-device objects.
-  queue.reset(num_devices);
-  kernel.reset(num_devices);
-  n_per_device.reset(num_devices);
-  input_u_buf.reset(num_devices);
 
 
   for(unsigned i = 0; i < num_devices; ++i) {
@@ -122,7 +135,7 @@ bool init_opencl() {
     checkError(status, "Failed to create command queue");
 
     // Kernel.
-    const char *kernel_name = "LIF_update";
+    const char *kernel_name = "easy_neuron_update";
     kernel[i] = clCreateKernel(program, kernel_name, &status);
     checkError(status, "Failed to create kernel");
 
@@ -137,12 +150,20 @@ bool init_opencl() {
 
 
     // Input buffers.
-    input_u_buf[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, 
+    u_buf[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, 
         n_per_device[i] * sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for input A");
+    checkError(status, "Failed to create buffer for input u");
+    I_buf[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, 
+        n_per_device[i] * sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input I");
+    Iinject_buf[i] = clCreateBuffer(context, CL_MEM_READ_ONLY, 
+        n_per_device[i] * sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input Iinject");
+    spike_buf[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, 
+        n_per_device[i] * sizeof(bool), NULL, &status);
+    checkError(status, "Failed to create buffer for input spike");
 
   }
-
   return true;
 }
 
@@ -152,18 +173,26 @@ void init_problem() {
     checkError(-1, "No devices");
   }
 
-  input_u.reset(num_devices);
+  u.reset(num_devices);
+  I.reset(num_devices);
+  Iinject.reset(num_devices);
+  spike.reset(num_devices);
 
   // Generate input vectors A and B and the reference output consisting
   // of a total of N elements.
   // We create separate arrays for each device so that each device has an
   // aligned buffer.
   for(unsigned i = 0; i < num_devices; ++i) {
-    input_u[i].reset(n_per_device[i]);
+    u[i].reset(n_per_device[i]);
+    I[i].reset(n_per_device[i]);
+    Iinject[i].reset(n_per_device[i]);
+    spike[i].reset(n_per_device[i]);
 
     for(unsigned j = 0; j < n_per_device[i]; ++j) {
-      //input_u[i][j] = rand_float();
-      input_u[i][j] = -0.06;
+      u[i][j] = rand_float();
+      I[i][j] = rand_float();
+      Iinject[i][j] = 3;
+      spike[i][j] = rand() % 2;
     }
   }
 }
@@ -179,24 +208,33 @@ void run() {
 
   for(unsigned i = 0; i < num_devices; ++i) {
 
-
     // Transfer inputs to each device. Each of the host buffers supplied to
     // clEnqueueWriteBuffer here is already aligned to ensure that DMA is used
     // for the host-to-device transfer.
-    cl_event write_event;
-    status = clEnqueueWriteBuffer(queue[i], input_u_buf[i], CL_FALSE,
-        0, n_per_device[i] * sizeof(float), input_u[i], 0, NULL, &write_event);
-    checkError(status, "Failed to transfer input A");
-
-
+    cl_event write_event[4];
+    status = clEnqueueWriteBuffer(queue[i], u_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(float), u[i], 0, NULL, &write_event[0]);
+    checkError(status, "Failed to transfer input u");
+    status = clEnqueueWriteBuffer(queue[i], I_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(float), I[i], 0, NULL, &write_event[1]);
+    checkError(status, "Failed to transfer input I");
+    status = clEnqueueWriteBuffer(queue[i], Iinject_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(float), Iinject[i], 0, NULL, &write_event[2]);
+    checkError(status, "Failed to transfer input Iinject");
+    status = clEnqueueWriteBuffer(queue[i], spike_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(bool), spike[i], 0, NULL, &write_event[3]);
+    checkError(status, "Failed to transfer input spike");
 
     // Set kernel arguments.
     unsigned argi = 0;
-
-
-    status = clSetKernelArg(kernel[i], argi++, sizeof(cl_mem), &input_u_buf[i]);
+    status = clSetKernelArg(kernel[i], argi++, sizeof(cl_mem), &u_buf[i]);
     checkError(status, "Failed to set argument %d", argi - 1);
-
+    status = clSetKernelArg(kernel[i], argi++, sizeof(cl_mem), &I_buf[i]);
+    checkError(status, "Failed to set argument %d", argi - 1);
+    status = clSetKernelArg(kernel[i], argi++, sizeof(cl_mem), &Iinject_buf[i]);
+    checkError(status, "Failed to set argument %d", argi - 1);
+    status = clSetKernelArg(kernel[i], argi++, sizeof(cl_mem), &spike_buf[i]);
+    checkError(status, "Failed to set argument %d", argi - 1);
 
 
     // Enqueue kernel.
@@ -212,17 +250,25 @@ void run() {
     const size_t global_work_size = n_per_device[i];
     printf("Launching for device %d (%zd elements)\n", i, global_work_size);
 
-    for(int n=0; n < 100; n++){
+
     status = clEnqueueNDRangeKernel(queue[i], kernel[i], 1, NULL,
-        &global_work_size, NULL, 1, &write_event, &kernel_event[i]);
+        &global_work_size, NULL, 1, write_event, &kernel_event[i]);
 
     // Read the result. This the final operation.
-    status = clEnqueueReadBuffer(queue[i], input_u_buf[i], CL_FALSE,
-        0, n_per_device[i] * sizeof(float), input_u[i], 1, &kernel_event[i], &finish_event[i]);
+    status = clEnqueueReadBuffer(queue[i], u_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(float), u[i], 1, &kernel_event[i], &finish_event[i]);
+    status = clEnqueueReadBuffer(queue[i], I_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(float), I[i], 1, &kernel_event[i], &finish_event[i]);
+    status = clEnqueueReadBuffer(queue[i], Iinject_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(float), Iinject[i], 1, &kernel_event[i], &finish_event[i]);
+    status = clEnqueueReadBuffer(queue[i], spike_buf[i], CL_FALSE,
+        0, n_per_device[i] * sizeof(bool), spike[i], 1, &kernel_event[i], &finish_event[i]);
 
-    }
     // Release local events.
-    clReleaseEvent(write_event);
+    clReleaseEvent(write_event[0]);
+    clReleaseEvent(write_event[1]);
+    clReleaseEvent(write_event[2]);
+    clReleaseEvent(write_event[3]);
 
   }
   
@@ -274,10 +320,21 @@ void cleanup() {
       clReleaseCommandQueue(queue[i]);
     }
 
-    if(input_u_buf && input_u_buf[i]) {
-      clReleaseMemObject(input_u_buf[i]);
+    if(u_buf && u_buf[i]) {
+      clReleaseMemObject(u_buf[i]);
     }
 
+    if(I_buf && I_buf[i]) {
+      clReleaseMemObject(I_buf[i]);
+    }
+
+    if(Iinject_buf && Iinject_buf[i]) {
+      clReleaseMemObject(Iinject_buf[i]);
+    }
+
+    if(spike_buf && spike_buf[i]) {
+      clReleaseMemObject(spike_buf[i]);
+    }
 
   }
 
