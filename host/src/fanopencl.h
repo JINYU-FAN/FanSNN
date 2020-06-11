@@ -22,7 +22,7 @@ struct CommandQueue{
 
 
 struct Program{
-
+    cl_program _program;
 };
 
 
@@ -35,16 +35,19 @@ class CL{
         ~CL();
         void create_context();
         void create_command_queue();
-        cl_mem create_buffer(cl_mem_flags mem_flags, int size, void* host_buf_ptr);
-        Program create_program(std::string program_name);
-        void enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr);
-        void enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr);
-    private:
+        cl_mem create_buffer(cl_mem_flags mem_flags, int size);
+        Program create_program(const char* program_name);
+        void enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr, int size);
+        void enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr, int size);
+        cl_kernel create_kernel(const char* kernel_name);
+    //private:
         cl_int status;
         unsigned int num_devices;
         Context ctx;
         CommandQueue queue;
         vector<cl_mem> buffers;
+        vector<cl_kernel> kernels;
+        Program program;
 
         
 };

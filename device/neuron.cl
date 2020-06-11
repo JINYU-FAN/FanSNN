@@ -20,7 +20,7 @@ __constant double dt = 0.001; // dt is not defined in the original version
 //(vector<float>& u, vector<float>& I, vector<float>& Iinject, vector<bool>& spike)
 //__attribute__((num_compute_units(100)))
 //__attribute__((reqd_work_group_size(1,1,1)))
-__kernel void easy_neuron_update(__global float *u, __global float *I, __global float *Iinject, __global bool *spike)
+__kernel void easy_neuron_update(__global float *u, __global float *I, __global float *Iinject, __global float *spike)
 {
 
     // get index of the work item

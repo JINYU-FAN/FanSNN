@@ -29,6 +29,19 @@ CL::~CL(){
     }
     printf("The buffers are released.\n");
 
+    for(int i=0; i < kernels.size(); i++){
+        if(kernels[i]){
+            clReleaseKernel(kernels[i]);
+        }
+    }
+    printf("The kernels are released.\n");
+    
+    if(program._program) {
+        clReleaseProgram(program._program);
+    }
+    printf("The program is released.\n");
+
+
     if(queue._queue) {
         clReleaseCommandQueue(queue._queue);
     }
@@ -56,11 +69,11 @@ void CL::create_command_queue(){
 }
 
 
-cl_mem CL::create_buffer(cl_mem_flags mem_flags, int size, void* host_buf_ptr){
+cl_mem CL::create_buffer(cl_mem_flags mem_flags, int size){
     cl_mem buffer = clCreateBuffer(ctx._context, mem_flags, 
-        size, host_buf_ptr, &status);
+        size, NULL, &status);
     checkError(status, "Failed to create buffer for input u");    
-    //buffers.push_back(buffer);
+    buffers.push_back(buffer);
     return buffer;
 }
 
@@ -68,22 +81,42 @@ cl_mem CL::create_buffer(cl_mem_flags mem_flags, int size, void* host_buf_ptr){
 
 
 
-void CL::enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr){
+void CL::enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr, int size){
     //cl_event write_event;
     printf("Write\n");
     status = clEnqueueWriteBuffer(queue._queue, *buf_ptr, CL_TRUE,
-        0, 10*sizeof(float), host_buf_ptr, 0, NULL, NULL);
-    checkError(status, "Failed to write buffer");    
+        0, size, host_buf_ptr, 0, NULL, NULL);
+    checkError(status, "Failed to write buffer"); 
     //clReleaseEvent(write_event);    
 }
 
-void CL::enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr){
+void CL::enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr, int size){
     //cl_event read_event;
     printf("Read\n");
     status = clEnqueueReadBuffer(queue._queue, *buf_ptr, CL_TRUE,
-        0, sizeof(float)*10, host_buf_ptr, 0, NULL, NULL);
+        0, size, host_buf_ptr, 0, NULL, NULL);
     checkError(status, "Failed to read buffer");
+    printf("Read completed\n");
 }
 
 
 
+Program CL::create_program(const char* program_name){
+      // Create the program for all device. Use the first device as the
+  // representative device (assuming all device are of the same type).
+  std::string binary_file = getBoardBinaryFile(program_name, ctx._device);
+  printf("Using AOCX: %s\n", binary_file.c_str());
+  program._program = createProgramFromBinary(ctx._context, binary_file.c_str(), &(ctx._device), 1);
+
+  // Build the program that was just created.
+  status = clBuildProgram(program._program, 0, NULL, "", NULL, NULL);
+  checkError(status, "Failed to build program");
+  return program;
+}
+
+cl_kernel CL::create_kernel(const char* kernel_name){
+    cl_kernel kernel = clCreateKernel(program._program, kernel_name, &status);
+    checkError(status, "Failed to create kernel");
+    kernels.push_back(kernel);
+    return kernel;
+}
