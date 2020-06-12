@@ -82,21 +82,23 @@ cl_mem CL::create_buffer(cl_mem_flags mem_flags, int size){
 
 
 void CL::enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr, int size){
-    //cl_event write_event;
     printf("Write\n");
+    cl_event write_event;
     status = clEnqueueWriteBuffer(queue._queue, *buf_ptr, CL_TRUE,
-        0, size, host_buf_ptr, 0, NULL, NULL);
+        0, size, host_buf_ptr, 0, NULL, &write_event);
     checkError(status, "Failed to write buffer"); 
-    //clReleaseEvent(write_event);    
+    clWaitForEvents(1, &write_event);
+    clReleaseEvent(write_event);    
 }
 
 void CL::enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr, int size){
-    //cl_event read_event;
     printf("Read\n");
+    cl_event read_event;
     status = clEnqueueReadBuffer(queue._queue, *buf_ptr, CL_TRUE,
-        0, size, host_buf_ptr, 0, NULL, NULL);
+        0, size, host_buf_ptr, 0, NULL, &read_event);
     checkError(status, "Failed to read buffer");
-    printf("Read completed\n");
+    clWaitForEvents(1, &read_event);
+    clReleaseEvent(read_event);
 }
 
 

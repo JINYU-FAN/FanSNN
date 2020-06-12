@@ -44,6 +44,10 @@ __kernel void easy_neuron_update(__global float *u, __global float *I, __global 
         spike[i] = 0;
     }
     I[i] = Iinject[i]; // Reset the current to only inject current
+    printf("u[%d]:%f\n",i, u[i]);
+    printf("I[%d]:%f\n",i, I[i]);
+    printf("Iinject[%d]:%f\n",i, Iinject[i]);
+    printf("spike[%d]:%f\n",i, spike[i]);
     //printf("inject current\n");
 //}
 }

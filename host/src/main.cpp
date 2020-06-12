@@ -16,42 +16,64 @@ int main(){
     vector<float> Iinject(10);
     vector<float> spike(10);
     for (int i=0; i<10;i++){
-        u[i] = rand()%10;
-        Iinject[i] = rand()%3;
-        spike[i] = rand()%2;
+        u[i] = 5;
+        Iinject[i] = 3;
+        spike[i] = 0;
     }
-    cout << u[0] << endl;
-    cl_mem u_buf = cl.create_buffer(CL_MEM_READ_WRITE, 10 * sizeof(float));
-    cl_mem I_buf = cl.create_buffer(CL_MEM_READ_WRITE, 10 * sizeof(float));
-    cl_mem Iinject_buf = cl.create_buffer(CL_MEM_READ_WRITE, 10 * sizeof(float));
-    cl_mem spike_buf = cl.create_buffer(CL_MEM_READ_WRITE, 10 * sizeof(float));
-
-    cl.enqueue_write(&u_buf, &u, 10*sizeof(float));
-    cl.enqueue_write(&I_buf, &I, 10*sizeof(float));
-    cl.enqueue_write(&Iinject_buf, &Iinject, 10*sizeof(float));
-    cl.enqueue_write(&spike_buf, &spike, 10*sizeof(float));
 
 
 
-    // Set kernel arguments.
+
+
+
+
+    cl_int status;
+    cl_mem u_buf = clCreateBuffer(cl.ctx._context, CL_MEM_READ_WRITE, 
+        10 * sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input u");
+    cl_mem I_buf = clCreateBuffer(cl.ctx._context, CL_MEM_READ_WRITE, 
+        10 * sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input I");
+    cl_mem Iinject_buf = clCreateBuffer(cl.ctx._context, CL_MEM_READ_ONLY, 
+        10 * sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input Iinject");
+    cl_mem spike_buf = clCreateBuffer(cl.ctx._context, CL_MEM_READ_WRITE, 
+        10 * sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input spike");
+    
+    
+    cl_event write_event[4];
+    status = clEnqueueWriteBuffer(cl.queue._queue, u_buf, CL_FALSE,
+        0, 10 * sizeof(float), &u, 0, NULL, &write_event[0]);
+    checkError(status, "Failed to transfer input u");
+    status = clEnqueueWriteBuffer(cl.queue._queue, I_buf, CL_FALSE,
+        0, 10 * sizeof(float), &I, 0, NULL, &write_event[1]);
+    checkError(status, "Failed to transfer input u");
+    status = clEnqueueWriteBuffer(cl.queue._queue, Iinject_buf, CL_FALSE,
+        0, 10 * sizeof(float), &Iinject, 0, NULL, &write_event[2]);
+    checkError(status, "Failed to transfer input u");
+    status = clEnqueueWriteBuffer(cl.queue._queue, spike_buf, CL_FALSE,
+        0, 10 * sizeof(float), &spike, 0, NULL, &write_event[3]);
+    checkError(status, "Failed to transfer input u");  
+    clWaitForEvents(4, write_event);
+    
+
     unsigned argi = 0;
-    clSetKernelArg(kernel, argi++, sizeof(cl_mem), &u_buf);
-    clSetKernelArg(kernel, argi++, sizeof(cl_mem), &I_buf);
-    clSetKernelArg(kernel, argi++, sizeof(cl_mem), &Iinject_buf);
-    clSetKernelArg(kernel, argi++, sizeof(cl_mem), &spike_buf);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &u_buf);
+    checkError(status, "Failed to set argument %d", argi - 1);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &I_buf);
+    checkError(status, "Failed to set argument %d", argi - 1);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &Iinject_buf);
+    checkError(status, "Failed to set argument %d", argi - 1);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &spike_buf);
+    checkError(status, "Failed to set argument %d", argi - 1);
 
 
-    //const size_t global_work_size = 10;
+    const size_t global_work_size = 10;
+    printf("Launching for device %d (%zd elements)\n", 1, global_work_size);
 
-    //clEnqueueNDRangeKernel(cl.queue._queue, kernel, 1, NULL,
-     //   &global_work_size, NULL, 0, NULL, NULL);
-    clEnqueueTask(cl.queue._queue, kernel, 0, NULL, NULL);
-
-    cl.enqueue_read(&u, &u_buf, 10*sizeof(float));
-    cl.enqueue_read(&I, &I_buf, 10*sizeof(float));
-    cl.enqueue_read(&Iinject, &Iinject_buf, 10*sizeof(float));
-    cl.enqueue_read(&spike, &spike_buf, 10*sizeof(float));
-
-    cout << u[0] << endl;
-
+    cl_event kernel_event;
+    status = clEnqueueNDRangeKernel(cl.queue._queue, kernel, 1, NULL,
+        &global_work_size, NULL, 0, NULL, &kernel_event);
+    clWaitForEvents(1, &kernel_event);
 }
