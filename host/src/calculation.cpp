@@ -47,30 +47,3 @@ void synapse_update(Neuron& layer_pre, Neuron& layer_post, vector<unsigned __int
 
 
 
-
-namespace fpga{
-
-extern const __int128 N_NEURON;
-extern const __int128 N_SYNAPSE;
-
-void neuron_update(vector<float>& u, vector<float>& I, vector<float>& Iinject, vector<bool>& spike){
-    __int128 N = u.size(); // The problem size
-    int REPEAT = N / N_NEURON;
-    if (N % N_NEURON != 0){
-        REPEAT += 1;
-    }
-    for (int i=0; i < REPEAT; i++){
-        //fpga_easy_neuron_update();
-    }
-}
-
-
-
-void synapse_update(Neuron& layer_pre, Neuron& layer_post, vector<unsigned __int128>& pre_ID, vector<unsigned __int128>& post_ID, vector<float>& weights){
-
-
-
-}
-
-
-}

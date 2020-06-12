@@ -3,7 +3,6 @@
 #include <iostream>
 #include "neuron.h"
 #include "synapse.h"
-#include "fpga.h"
 using namespace std;
 using namespace fansnn;
 
