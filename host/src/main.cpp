@@ -24,9 +24,6 @@ int main(){
 
 
 
-
-
-
     cl_int status;
     cl_mem u_buf = clCreateBuffer(cl.ctx._context, CL_MEM_READ_WRITE, 
         10 * sizeof(float), NULL, &status);

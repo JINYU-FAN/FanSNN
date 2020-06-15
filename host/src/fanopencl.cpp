@@ -104,16 +104,16 @@ void CL::enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr, int size){
 
 
 Program CL::create_program(const char* program_name){
-      // Create the program for all device. Use the first device as the
-  // representative device (assuming all device are of the same type).
-  std::string binary_file = getBoardBinaryFile(program_name, ctx._device);
-  printf("Using AOCX: %s\n", binary_file.c_str());
-  program._program = createProgramFromBinary(ctx._context, binary_file.c_str(), &(ctx._device), 1);
+    // Create the program for all device. Use the first device as the
+    // representative device (assuming all device are of the same type).
+    std::string binary_file = getBoardBinaryFile(program_name, ctx._device);
+    printf("Using AOCX: %s\n", binary_file.c_str());
+    program._program = createProgramFromBinary(ctx._context, binary_file.c_str(), &(ctx._device), 1);
 
-  // Build the program that was just created.
-  status = clBuildProgram(program._program, 0, NULL, "", NULL, NULL);
-  checkError(status, "Failed to build program");
-  return program;
+    // Build the program that was just created.
+    status = clBuildProgram(program._program, 0, NULL, "", NULL, NULL);
+    checkError(status, "Failed to build program");
+    return program;
 }
 
 cl_kernel CL::create_kernel(const char* kernel_name){
