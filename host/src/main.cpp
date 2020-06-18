@@ -3,27 +3,23 @@
 #include <iostream>
 #include "neuron.h"
 #include "synapse.h"
+#include "AOCLUtils/aocl_utils.h"
+#include <GL/glut.h>
 using namespace std;
 using namespace fansnn;
+using namespace aocl_utils;
 
 
 int main(){
-    Neuron layer1(2);
-    Neuron layer2(2);
-    
+    const double start_time = getCurrentTimestamp();
+    Neuron layer1(1); 
     layer1.randomize_Iinject(10,10.2);
-    Synapse s(layer1, layer2, 1.0);
     int n = 1;
     for (int i = 0; i < 100; i++){  
-        cout << "\nUpdate:" << n<<endl;  
-        n+= 1;
-        cout << "layer1 update"<<endl; 
         layer1.update();
-        cout << "layer2 update"<<endl;  
-        layer2.update(); 
-        cout << "synapse update"<<endl;  
-        s.update();   
     }
+    const double end_time = getCurrentTimestamp();
+    printf("Time: %f\n", end_time - start_time);
 }
 
 
