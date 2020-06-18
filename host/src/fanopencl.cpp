@@ -1,6 +1,7 @@
 #include "fanopencl.h"
 #include <boost/assert.hpp>
 using namespace boost;
+
 CL::CL(){
     printf("Initializing OpenCL\n");
     if(!setCwdToExeDir()) {
@@ -83,22 +84,16 @@ cl_mem CL::create_buffer(cl_mem_flags mem_flags, int size){
 
 void CL::enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr, int size){
     printf("Write\n");
-    cl_event write_event;
     status = clEnqueueWriteBuffer(queue._queue, *buf_ptr, CL_TRUE,
-        0, size, host_buf_ptr, 0, NULL, &write_event);
+        0, size, host_buf_ptr, 0, NULL, NULL);
     checkError(status, "Failed to write buffer"); 
-    clWaitForEvents(1, &write_event);
-    clReleaseEvent(write_event);    
+ 
 }
 
 void CL::enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr, int size){
-    printf("Read\n");
-    cl_event read_event;
     status = clEnqueueReadBuffer(queue._queue, *buf_ptr, CL_TRUE,
-        0, size, host_buf_ptr, 0, NULL, &read_event);
+        0, size, host_buf_ptr, 0, NULL, NULL);
     checkError(status, "Failed to read buffer");
-    clWaitForEvents(1, &read_event);
-    clReleaseEvent(read_event);
 }
 
 
@@ -121,4 +116,22 @@ cl_kernel CL::create_kernel(const char* kernel_name){
     checkError(status, "Failed to create kernel");
     kernels.push_back(kernel);
     return kernel;
+}
+
+void CL::execute_kernel(cl_kernel kernel, cl_mem* args[], unsigned size){
+    unsigned argi = 0;
+    for (unsigned argi = 0; argi < size; argi++){
+        status = clSetKernelArg(kernel, argi, sizeof(cl_mem), args[argi]);
+        checkError(status, "Failed to set argument %d", argi - 1);
+    } 
+
+    const size_t global_work_size = 10;
+    printf("Launching for device (%zd elements)\n", global_work_size);
+    cl_event kernel_event;
+    status = clEnqueueNDRangeKernel(queue._queue, kernel, 1, NULL,
+        &global_work_size, NULL, 0, NULL, &kernel_event);  
+    
+    clWaitForEvents(1, &kernel_event);
+    clReleaseEvent(kernel_event);  
+    
 }

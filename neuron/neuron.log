@@ -1,1 +1,0 @@
-Compiler Command: aoc -march=emulator -legacy-emulator -v device/neuron.cl -o neuron.aocx

@@ -40,6 +40,7 @@ class CL{
         void enqueue_write(cl_mem* buf_ptr, void* host_buf_ptr, int size);
         void enqueue_read(void* host_buf_ptr, cl_mem* buf_ptr, int size);
         cl_kernel create_kernel(const char* kernel_name);
+        void execute_kernel(cl_kernel kernel, cl_mem* args[], unsigned size);
     //private:
         cl_int status;
         unsigned int num_devices;

@@ -30,11 +30,6 @@ __kernel void easy_neuron_update(__global float *u, __global float *I, __global 
     // The code below is a very intimate version and required refinement.
 
     u[i] += I[i];
-    //printf("u[%d]:%f\n",i, u[i]);
-    //printf("I[%d]:%f\n",i, I[i]);
-    //printf("Iinject[%d]:%f\n",i, Iinject[i]);
-    //printf("spike[%d]:%d\n",i, spike[i]);
-    //cout << "u:"<< u[i] << endl;
     if(u[i] >= 10){ // 10 is the firing threshold
         spike[i] = 1;
         //printf("SPIKE!\n");
