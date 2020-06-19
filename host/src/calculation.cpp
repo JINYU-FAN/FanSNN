@@ -18,14 +18,10 @@ void neuron_update(vector<float>& u, vector<float>& I, vector<float>& Iinject, v
         u = 0
     */
     for (unsigned __int128 i = 0; i < u.size(); i++){
-        cout << "u:"<< u[i] << endl;
-        cout << "I:"<< I[i] << endl;
+        cout << I[i] << endl;
         u[i] += I[i];
-
-        cout << "u:"<< u[i] << endl;
         if(u[i] >= 10){ // 10 is the firing threshold
             spike[i] = 1;
-            printf("SPIKE!\n");
             u[i] = 0;
         }
         else{
@@ -46,4 +42,32 @@ void synapse_update(Neuron& layer_pre, Neuron& layer_post, vector<unsigned __int
 
 
 
+namespace cpu{
+    const double Rm = 1e6;
+    const double Cm = 3e-8;
+    const double Vrest = -0.06;
+    const double Vthresh = -0.045;
+    const double Vreset = -0.06;
+    const double Trefract = 3e-3;
+    const double Iinject = 5e-7;
+    const double dt = 0.001;
+    void neuron_update(vector<float>& u, vector<float>& I, vector<float>& Iinject, vector<bool>& spike){
+        for (unsigned __int128 i = 0; i < u.size(); i++){
+            u[i] += ((Vrest - u[i])/Rm + I[i]) * dt / Cm;
+            if (u[i] > Vthresh){
+                spike[i] = 1;
+                u[i] = Vreset;
+                printf("SPIKE\n");
+            }
+            else{
+                spike[i] = 0;
+            }
+            I[i] = Iinject[i];
+        }
+    }
 
+    void synapse_update(Neuron& layer_pre, Neuron& layer_post, vector<unsigned __int128>& pre_ID, vector<unsigned __int128>& post_ID, vector<float>& weights){
+
+    }
+
+}

@@ -25,27 +25,16 @@ __kernel void easy_neuron_update(__global float *u, __global float *I, __global 
 
     // get index of the work item
     int i = get_global_id(0);
-    //#pragma unroll 10
-    //for(int i =0; i < 1e2; i++){
     // The code below is a very intimate version and required refinement.
-
     u[i] += I[i];
-    //printf("u[%d]:%f\n",i, u[i]);
-    //printf("I[%d]:%f\n",i, I[i]);
-    //printf("Iinject[%d]:%f\n",i, Iinject[i]);
-    //printf("spike[%d]:%d\n",i, spike[i]);
-    //cout << "u:"<< u[i] << endl;
     if(u[i] >= 10){ // 10 is the firing threshold
         spike[i] = 1;
-        //printf("SPIKE!\n");
         u[i] = 0;
     }
     else{
         spike[i] = 0;
     }
     I[i] = Iinject[i]; // Reset the current to only inject current
-    //printf("inject current\n");
-//}
 }
 
 

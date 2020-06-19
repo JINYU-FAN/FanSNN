@@ -5,7 +5,6 @@
 #include "calculation.h"
 
 using namespace std;
-using namespace easy;
 namespace fansnn{
 
 Neuron::Neuron(unsigned __int128 N){
@@ -17,7 +16,7 @@ Neuron::Neuron(unsigned __int128 N){
 }
 
 void Neuron::update(void){
-    neuron_update(this->u, this->I, this->Iinject, this->spike);
+    cpu::neuron_update(this->u, this->I, this->Iinject, this->spike);
 }
 
 void Neuron::randomize_Iinject(const float MIN, const float MAX){

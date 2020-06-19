@@ -5,6 +5,7 @@
         "ostream": "cpp",
         "bitset": "cpp",
         "random": "cpp",
-        "*.cppp": "cpp"
+        "*.cppp": "cpp",
+        "fstream": "cpp"
     }
 }
